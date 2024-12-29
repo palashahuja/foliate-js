@@ -671,6 +671,8 @@ class Resources {
                 ?.getAttribute('content'))
             ?? this.getItemByHref(this.guide
                 ?.find(ref => ref.type.includes('cover'))?.href)
+            ?? this.manifest.find(item => item.href.includes('cover')
+                && item.mediaType.startsWith('image'))
 
         this.cfis = CFI.fromElements($$itemref)
     }
