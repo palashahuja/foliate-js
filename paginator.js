@@ -1065,11 +1065,11 @@ export class Paginator extends HTMLElement {
         if (shouldGo || !this.hasAttribute('animated')) await wait(100)
         this.#locked = false
     }
-    prev(distance) {
-        return this.#turnPage(-1, distance)
+    async prev(distance) {
+        return await this.#turnPage(-1, distance)
     }
-    next(distance) {
-        return this.#turnPage(1, distance)
+    async next(distance) {
+        return await this.#turnPage(1, distance)
     }
     prevSection() {
         return this.goTo({ index: this.#adjacentIndex(-1) })
