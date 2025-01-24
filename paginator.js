@@ -833,6 +833,11 @@ export class Paginator extends HTMLElement {
             if (this.#touchScrolled) e.preventDefault()
             return
         }
+        const doc = this.#view?.document
+        const selection = doc?.getSelection()
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+            return
+        }
         e.preventDefault()
         const touch = e.changedTouches[0]
         const x = touch.screenX, y = touch.screenY
