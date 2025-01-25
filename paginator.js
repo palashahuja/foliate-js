@@ -846,10 +846,21 @@ export class Paginator extends HTMLElement {
         state.x = x
         state.y = y
         state.t = e.timeStamp
-        state.vx = dx / dt
-        state.vy = dy / dt
-        this.#touchScrolled = true
-        this.scrollBy(dx, dy)
+
+        const HORIZONTAL_THRESHOLD = 30
+        const VERTICAL_THRESHOLD = 30
+        const angle = Math.abs(Math.atan2(dy, dx) * (180 / Math.PI))
+        if (angle < HORIZONTAL_THRESHOLD || angle > 180 - HORIZONTAL_THRESHOLD) {
+            state.vx = dx / dt
+            state.vy = dy / dt
+            this.#touchScrolled = true
+            this.scrollBy(dx, 0)
+        } else if (angle > 90 - VERTICAL_THRESHOLD && angle < 90 + VERTICAL_THRESHOLD) {
+            state.vx = dx / dt
+            state.vy = dy / dt
+            this.#touchScrolled = true
+            this.scrollBy(0, dy)
+        }
     }
     #onTouchEnd() {
         this.#touchScrolled = false
