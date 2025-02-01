@@ -669,10 +669,10 @@ class Resources {
             ?? this.getItemByID($$$(opf, 'meta')
                 .find(filterAttribute('name', 'cover'))
                 ?.getAttribute('content'))
-            ?? this.getItemByHref(this.guide
-                ?.find(ref => ref.type.includes('cover'))?.href)
             ?? this.manifest.find(item => item.href.includes('cover')
                 && item.mediaType.startsWith('image'))
+            ?? this.getItemByHref(this.guide
+                ?.find(ref => ref.type.includes('cover'))?.href)
 
         this.cfis = CFI.fromElements($$itemref)
     }
