@@ -4,7 +4,9 @@ const createSVGElement = tag =>
 export class Overlayer {
     #svg = createSVGElement('svg')
     #map = new Map()
-    constructor() {
+    #doc = null
+    constructor(doc) {
+        this.#doc = doc
         Object.assign(this.#svg.style, {
             position: 'absolute', top: '0', left: '0',
             width: '100%', height: '100%',
@@ -14,10 +16,25 @@ export class Overlayer {
     get element() {
         return this.#svg
     }
+    get #zoom() {
+        // Safari does not zoom the client rects, while Chrome, Edge and Firefox does
+        if (/^((?!chrome|android).)*AppleWebKit/i.test(navigator.userAgent) && !window.chrome) {
+            return window.getComputedStyle(this.#doc.body).zoom || 1.0
+        }
+        return 1.0
+    }
     add(key, range, draw, options) {
         if (this.#map.has(key)) this.remove(key)
         if (typeof range === 'function') range = range(this.#svg.getRootNode())
-        const rects = range.getClientRects()
+        const zoom = this.#zoom
+        const rects = Array.from(range.getClientRects()).map(rect => ({
+            left: rect.left * zoom,
+            top: rect.top * zoom,
+            right: rect.right * zoom,
+            bottom: rect.bottom * zoom,
+            width: rect.width * zoom,
+            height: rect.height * zoom,
+        }))
         const element = draw(rects, options)
         this.#svg.append(element)
         this.#map.set(key, { range, draw, options, element, rects })
@@ -31,7 +48,15 @@ export class Overlayer {
         for (const obj of this.#map.values()) {
             const { range, draw, options, element } = obj
             this.#svg.removeChild(element)
-            const rects = range.getClientRects()
+            const zoom = this.#zoom
+            const rects = Array.from(range.getClientRects()).map(rect => ({
+                left: rect.left * zoom,
+                top: rect.top * zoom,
+                right: rect.right * zoom,
+                bottom: rect.bottom * zoom,
+                width: rect.width * zoom,
+                height: rect.height * zoom,
+            }))
             const el = draw(rects, options)
             this.#svg.append(el)
             obj.element = el
