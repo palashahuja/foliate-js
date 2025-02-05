@@ -22,27 +22,49 @@ const getAlphabet = el => {
 }
 
 const getSegmenter = (lang = 'en', granularity = 'word') => {
-    const segmenter = new Intl.Segmenter(lang, { granularity })
-    const granularityIsWord = granularity === 'word'
-    return function* (strs, makeRange) {
-        const str = strs.join('')
-        let name = 0
-        let strIndex = -1
-        let sum = 0
-        for (const { index, segment, isWordLike } of segmenter.segment(str)) {
-            if (granularityIsWord && !isWordLike) continue
-            while (sum <= index) sum += strs[++strIndex].length
-            const startIndex = strIndex
-            const startOffset = index - (sum - strs[strIndex].length)
-            const end = index + segment.length
-            if (end < str.length) while (sum <= end) sum += strs[++strIndex].length
-            const endIndex = strIndex
-            const endOffset = end - (sum - strs[strIndex].length)
-            yield [(name++).toString(),
-                makeRange(startIndex, startOffset, endIndex, endOffset)]
-        }
+  const segmenter = new Intl.Segmenter(lang, { granularity });
+  const isWordGranularity = granularity === 'word';
+
+  return function* (strs, makeRange) {
+    // Join the strings and normalize newline characters.
+    const joinedStr = strs
+      .join('')
+      .replace(/\r\n/g, '  ')
+      .replace(/\r/g, ' ')
+      .replace(/\n/g, ' ');
+
+    let currentStrIndex = 0;        // Tracks the current string in `strs`
+    let cumulativeLength = strs[0]?.length || 0; // Tracks the total length processed
+
+    // Maps a global index to the corresponding [string index, local offset].
+    const mapGlobalToLocal = (globalIndex) => {
+      while (globalIndex >= cumulativeLength && currentStrIndex < strs.length - 1) {
+        currentStrIndex++;
+        cumulativeLength += strs[currentStrIndex].length;
+      }
+      const localOffset = globalIndex - (cumulativeLength - strs[currentStrIndex].length);
+      return [currentStrIndex, localOffset];
+    };
+
+    let segmentId = 0;
+    for (const { index: segStart, segment, isWordLike } of segmenter.segment(joinedStr)) {
+      if (isWordGranularity && !isWordLike) continue;
+
+      // Map global start and end to local positions
+      const [startIndex, startOffset] = mapGlobalToLocal(segStart);
+      const segEndGlobal = segStart + segment.length - 1;
+      const [endIndex, endOffset] = mapGlobalToLocal(segEndGlobal);
+
+      // Adjust endOffset to be exclusive
+      yield [
+        segmentId.toString(),
+        makeRange(startIndex, startOffset, endIndex, endOffset + 1)
+      ];
+
+      segmentId++;
     }
-}
+  };
+};
 
 const fragmentToSSML = (fragment, inherited) => {
     const ssml = document.implementation.createDocument(NS.SSML, 'speak')
