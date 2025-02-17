@@ -443,6 +443,7 @@ export class Paginator extends HTMLElement {
     #lastVisibleRange
     #autoScrollTimer = null
     #autoScrolling = false
+    #touchMoved = false
     #autoScrollInProgress = false
     static FIXED_SCROLL_AMOUNT = 5
     constructor() {
@@ -553,6 +554,16 @@ export class Paginator extends HTMLElement {
 
         this.#observer.observe(this.#container)
         this.#container.addEventListener('scroll', () => this.dispatchEvent(new Event('scroll')))
+        this.#container.addEventListener('scroll', () => {
+            // Only stop auto-scrolling if the scroll event did NOT come from auto scrolling
+            if (!this.#autoScrollInProgress) {
+                const scrollProp = this.scrollProp;
+                const currentOffset = this.#container[scrollProp];
+                const size = this.size;
+                this.#scrollBounds = [currentOffset, size, size];
+                this.stopAutoScroll();
+            }
+        });
         this.#container.addEventListener('scroll', debounce(() => {
             if (this.scrolled) {
                 if (this.#justAnchored) this.#justAnchored = false
@@ -564,10 +575,12 @@ export class Paginator extends HTMLElement {
         this.addEventListener('touchstart', this.#onTouchStart.bind(this), opts)
         this.addEventListener('touchmove', this.#onTouchMove.bind(this), opts)
         this.addEventListener('touchend', this.#onTouchEnd.bind(this))
+        this.addEventListener('click', this.#onClick.bind(this))
         this.addEventListener('load', ({ detail: { doc } }) => {
             doc.addEventListener('touchstart', this.#onTouchStart.bind(this), opts)
             doc.addEventListener('touchmove', this.#onTouchMove.bind(this), opts)
             doc.addEventListener('touchend', this.#onTouchEnd.bind(this))
+            doc.addEventListener('click', this.#onClick.bind(this))
         })
 
         this.addEventListener('relocate', ({ detail }) => {
@@ -830,6 +843,8 @@ export class Paginator extends HTMLElement {
             t: e.timeStamp,
             vx: 0, xy: 0,
         }
+        // Reset the movement flag
+        this.#touchMoved = false;
     }
     #onTouchMove(e) {
         const state = this.#touchState
@@ -844,6 +859,10 @@ export class Paginator extends HTMLElement {
         const selection = doc?.getSelection()
         if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
             return
+        }
+        this.#touchMoved = true;
+        if (this.#autoScrolling) {
+            this.stopAutoScroll();
         }
         e.preventDefault()
         const touch = e.changedTouches[0]
@@ -868,9 +887,15 @@ export class Paginator extends HTMLElement {
             this.#touchScrolled = true
             this.scrollBy(0, dy)
         }
+        
     }
     #onTouchEnd() {
         this.#touchScrolled = false
+        if (!this.#touchMoved) {
+            this.toggleAutoScroll();
+        }
+        // Reset the touch moved flag
+        this.#touchMoved = false;
         if (this.scrolled) return
 
         // XXX: Firefox seems to report scale as 1... sometimes...?
@@ -880,6 +905,11 @@ export class Paginator extends HTMLElement {
             if (globalThis.visualViewport.scale === 1)
                 this.snap(this.#touchState.vx, this.#touchState.vy)
         })
+    }
+
+    #onClick() {
+        // Toggle the auto scroll feature
+        this.toggleAutoScroll();
     }
     // allows one to process rects as if they were LTR and horizontal
     #getRectMapper() {
