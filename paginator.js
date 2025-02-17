@@ -441,6 +441,10 @@ export class Paginator extends HTMLElement {
     #touchState
     #touchScrolled
     #lastVisibleRange
+    #autoScrollTimer = null
+    #autoScrolling = false
+    #autoScrollInProgress = false
+    static FIXED_SCROLL_AMOUNT = 5
     constructor() {
         super()
         this.#root.innerHTML = `<style>
@@ -787,6 +791,9 @@ export class Paginator extends HTMLElement {
         return Math.round(this.viewSize / this.size)
     }
     scrollBy(dx, dy) {
+        if (!this.#scrollBounds) {
+            return;
+        }
         const delta = this.#vertical ? dy : dx
         const element = this.#container
         const { scrollProp } = this
@@ -1137,6 +1144,44 @@ export class Paginator extends HTMLElement {
         this.#view = null
         this.sections[this.#index]?.unload?.()
         this.#mediaQuery.removeEventListener('change', this.#mediaQueryListener)
+    }
+    startAutoScroll(tickInterval = 50) {
+        // Auto Scrollng only for vertical layout
+        if (this.#vertical) return;
+        // If auto scrolling is already active, do nothing (or clear and restart)
+        if (this.#autoScrollTimer) return;
+
+        this.#autoScrolling = true;
+        // Create a timer for the auto scroll based on the tick interval
+        this.#autoScrollTimer = setInterval(() => {
+            if (this.atEnd) {
+                this.stopAutoScroll();
+                return;
+            }
+            this.#autoScrollInProgress = true;
+            this.scrollBy(Paginator.FIXED_SCROLL_AMOUNT, 0);
+            requestAnimationFrame(() => {
+                this.#autoScrollInProgress = false;
+            });
+        }, tickInterval);
+    }
+
+    stopAutoScroll() {
+        // Stop the auto-scrolling
+        if (this.#autoScrollTimer) {
+            clearInterval(this.#autoScrollTimer);
+            this.#autoScrollTimer = null;
+        }
+        this.#autoScrolling = false;
+        this.#autoScrollInProgress = false;
+    }
+
+    toggleAutoScroll() {
+        if (this.#autoScrolling) {
+            this.stopAutoScroll();
+        } else {
+            this.startAutoScroll();
+        }
     }
 }
 
