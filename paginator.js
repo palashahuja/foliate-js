@@ -445,6 +445,8 @@ export class Paginator extends HTMLElement {
     #autoScrolling = false
     #touchMoved = false
     #autoScrollInProgress = false
+    #globalAutoScroll = false
+    #autoScrollTickInterval = null
     static FIXED_SCROLL_AMOUNT = 5
     constructor() {
         super()
@@ -1175,7 +1177,9 @@ export class Paginator extends HTMLElement {
         this.sections[this.#index]?.unload?.()
         this.#mediaQuery.removeEventListener('change', this.#mediaQueryListener)
     }
-    startAutoScroll(tickInterval = 50) {
+    startAutoScroll() {
+        // Only Activate Auto Scrolling if initialized by a global setting
+        if (!this.#globalAutoScroll) return;
         // Auto Scrollng only for vertical layout
         if (this.#vertical) return;
         // If auto scrolling is already active, do nothing (or clear and restart)
@@ -1193,10 +1197,21 @@ export class Paginator extends HTMLElement {
             requestAnimationFrame(() => {
                 this.#autoScrollInProgress = false;
             });
-        }, tickInterval);
+        }, this.#autoScrollTickInterval);
+    }
+
+    initiateAutoScrollSetting(setUpAutoScroll = true, tickInterval = 50) {
+        this.#globalAutoScroll = setUpAutoScroll;
+        if (this.#globalAutoScroll) {
+            this.#autoScrollTickInterval = tickInterval;
+        } else {
+            this.#autoScrollTickInterval = null;
+        }
     }
 
     stopAutoScroll() {
+        // Only Activate Auto Scrolling if initialized by a global setting
+        if (!this.#globalAutoScroll) return;
         // Stop the auto-scrolling
         if (this.#autoScrollTimer) {
             clearInterval(this.#autoScrollTimer);
@@ -1207,6 +1222,8 @@ export class Paginator extends HTMLElement {
     }
 
     toggleAutoScroll() {
+        // Only Activate Auto Scrolling if initialized by a global setting
+        if (!this.#globalAutoScroll) return;
         if (this.#autoScrolling) {
             this.stopAutoScroll();
         } else {
